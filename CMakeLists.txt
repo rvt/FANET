@@ -77,5 +77,6 @@ if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
 endif()
 
 if (BUILD_TESTS)
+    enable_testing()
     add_subdirectory(test)
 endif()

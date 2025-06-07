@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.18)
 project(tests)
 include(FetchContent)
 include(CTest)
-enable_testing()
 message(STATUS "Building tests.")
 
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
@@ -83,7 +82,8 @@ foreach(name ${TARGETS_IDIOMATIC_EXAMPLES})
       fanet::fanet
       etl)
 
-  add_test(NAME ${name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${name})
+  #add_test(NAME ${name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/${name})
+  add_test(NAME ${name} COMMAND ${name})
 endforeach()
 endif()
 
