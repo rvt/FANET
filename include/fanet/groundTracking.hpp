@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "etl/enum_type.h"
 #include "etl/math.h"
 #include "header.hpp"
 
@@ -16,18 +17,36 @@ namespace FANET
         /**
          * @brief Enumeration for tracking types.
          */
-        enum class TrackingType : uint8_t
+        struct TrackingType 
         {
-            OTHER = 0,                   // Other
-            WALKING = 1,                 // Walking
-            VEHICLE = 2,                 // Vehicle
-            BIKE = 3,                    // Bike
-            BOOT = 4,                    // Boot
-            NEED_A_RIDE = 8,             // Need a ride
-            NEED_TECHNICAL_SUPPORT = 12, // Need technical support
-            NEED_MEDICAL_HELP = 13,      // Need medical help
-            DISTRESS_CALL = 14,          // Distress call
-            DISTRESS_CALL_AUTO = 15      // Distress call (automatic)
+            enum enum_type
+            {
+                OTHER = 0,                   // Other
+                WALKING = 1,                 // Walking
+                VEHICLE = 2,                 // Vehicle
+                BIKE = 3,                    // Bike
+                BOOT = 4,                    // Boot
+                NEED_A_RIDE = 8,             // Need a ride
+                LANDED_WELL = 9,             // Landed well
+                NEED_TECHNICAL_SUPPORT = 12, // Need technical support
+                NEED_MEDICAL_HELP = 13,      // Need medical help
+                DISTRESS_CALL = 14,          // Distress call
+                DISTRESS_CALL_AUTO = 15      // Distress call (automatic)
+            };
+
+            ETL_DECLARE_ENUM_TYPE(TrackingType, uint8_t)
+            ETL_ENUM_TYPE(OTHER, "Other")
+            ETL_ENUM_TYPE(WALKING, "Walking")
+            ETL_ENUM_TYPE(VEHICLE, "Vehicle")
+            ETL_ENUM_TYPE(BIKE, "Bike")
+            ETL_ENUM_TYPE(BOOT, "Boot")
+            ETL_ENUM_TYPE(NEED_A_RIDE, "Need a ride")
+            ETL_ENUM_TYPE(LANDED_WELL, "Landed well")
+            ETL_ENUM_TYPE(NEED_TECHNICAL_SUPPORT, "Need technical support")
+            ETL_ENUM_TYPE(NEED_MEDICAL_HELP, "Need medical help")
+            ETL_ENUM_TYPE(DISTRESS_CALL, "Distress call")
+            ETL_ENUM_TYPE(DISTRESS_CALL_AUTO, "Distress call (automatic)")
+            ETL_END_ENUM_TYPE
         };
 
     private:

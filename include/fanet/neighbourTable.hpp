@@ -18,51 +18,51 @@ namespace FANET
             Address address;
             uint32_t lastSeen;
         };
-        etl::vector<Neighbour, FANET_MAX_NEIGHBORS> neighborTable;
+        etl::vector<Neighbour, FANET_MAX_NEIGHBORS> neighborTable_;
 
     public:
         void clear()
         {
-            return neighborTable.clear();
+            return neighborTable_.clear();
         }
         size_t size() const
         {
-            return neighborTable.size();
+            return neighborTable_.size();
         }
 
         void addOrUpdate(Address address, uint32_t lastSeen)
         {
             // THis is to simply the code, and 1ms is not a concern
             // So that lastSeen will always return a value
-            if (neighborTable.full())
+            if (neighborTable_.full())
             {
                 removeOldest();
             }
 
-            auto it = std::find_if(neighborTable.begin(), neighborTable.end(), [&address](const Neighbour &n)
+            auto it = std::find_if(neighborTable_.begin(), neighborTable_.end(), [&address](const Neighbour &n)
                                    { return n.address == address; });
-            if (it != neighborTable.end())
+            if (it != neighborTable_.end())
             {
                 it->lastSeen = lastSeen;
             }
             else
             {
-                neighborTable.push_back(Neighbour{address, lastSeen});
+                neighborTable_.push_back(Neighbour{address, lastSeen});
             }
         }
 
         void remove(const Address &address)
         {
-            neighborTable.erase(std::remove_if(neighborTable.begin(), neighborTable.end(), [&address](const Neighbour &neighbour)
+            neighborTable_.erase(std::remove_if(neighborTable_.begin(), neighborTable_.end(), [&address](const Neighbour &neighbour)
                                                { return neighbour.address == address; }),
-                                neighborTable.end());
+                                neighborTable_.end());
         }
 
         uint32_t lastSeen(const Address &address) const
         {
-            auto it = std::find_if(neighborTable.begin(), neighborTable.end(), [&address](const Neighbour &neighbour)
+            auto it = std::find_if(neighborTable_.begin(), neighborTable_.end(), [&address](const Neighbour &neighbour)
                                    { return neighbour.address == address; });
-            if (it != neighborTable.end())
+            if (it != neighborTable_.end())
             {
                 return it->lastSeen;
             }
@@ -72,23 +72,27 @@ namespace FANET
 
         void removeOldest()
         {
-            auto it = std::min_element(neighborTable.begin(), neighborTable.end(), [](const Neighbour &a, const Neighbour &b)
+            auto it = std::min_element(neighborTable_.begin(), neighborTable_.end(), [](const Neighbour &a, const Neighbour &b)
                                        { return a.lastSeen < b.lastSeen; });
-            if (it != neighborTable.end())
+            if (it != neighborTable_.end())
             {
-                neighborTable.erase(it);
+                neighborTable_.erase(it);
             }
         }
 
 
         void removeOutdated(uint32_t timeMs)
         {
-            neighborTable.erase(std::remove_if(neighborTable.begin(), neighborTable.end(), [&timeMs](const Neighbour &neighbour)
+            neighborTable_.erase(std::remove_if(neighborTable_.begin(), neighborTable_.end(), [&timeMs](const Neighbour &neighbour)
                                                { 
                                                 uint32_t diff = timeMs - neighbour.lastSeen;
                                                 return diff >  NEIGHBOR_MAX_TIMEOUT_MS; }),
-                                neighborTable.end());
+                                neighborTable_.end());
         }
+
+        const etl::ivector<Neighbour> &neighborTable() const {
+          return neighborTable_;
+         }
     };
 
 }

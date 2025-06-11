@@ -31,7 +31,25 @@ namespace FANET
      */
     class Protocol
     {
+    public:
+        struct Stats 
+        {
+            uint32_t rx = 0;                 // All packets received
+            uint32_t txSuccess = 0;          // All packets transmitted
+            uint32_t txFailed = 0;           // An attempted transmission failed
+            uint32_t processed = 0;          // Packets passed to the application stack to be processed
+            uint32_t forwarded = 0;          // All packets that were forwarded
+            uint32_t fwdMinRssiDrp = 0;      // Packets discarded due to Rssi being too good
+            uint32_t fwdNeighborDrp = 0;     // Packets discarded due to no neighbor in neighbor table
+            uint32_t fwdDbBoostDrop = 0;     // Pkts dropped from txQueue with subsequent good rssi
+            uint32_t fwdDbBoostWeak = 0;     // Pkts forwarded that was in our TX queue due seeing a rxmit with a poor rssi
+            uint32_t fwdDropAirtime = 0;     // Packets dropped due to too much time on the air recently.
+            uint32_t rxFromUsDrp = 0;        // Dropped packets from our own Mac
+            uint32_t txAck = 0;              // Number of Acks sent
+            uint32_t neighborTableSize = 0;  // Number of neighbors currently in our neighbor table
+        };
     protected:
+
         static constexpr int32_t MAC_SLOT_MS = 20;
 
         static constexpr int32_t MAC_TX_MINPREAMBLEHEADERTIME_MS = 15;
@@ -82,6 +100,9 @@ namespace FANET
 
         // Connector for the application, e.g., the interface between the FANET protocol and the application
         Connector *connector;
+
+        // Statistics for the protocol's operation
+        Stats stats_;
 
         /**
          * @brief Build an acknowledgment packet from an existing frame.
@@ -336,6 +357,8 @@ namespace FANET
          */
         Header::MessageType handleRx(int16_t rssddBm, etl::span<const uint8_t> buffer)
         {
+            stats_.rx++; // All packets received
+
             // START: OK
             // static constexpr size_t MAC_PACKET_SIZE = ((MAXFRAMESIZE > MAXFRAMESIZE) ? MAXFRAMESIZE : MAXFRAMESIZE) + 12; // 12 Byte for maximum header size
             auto timeMs = connector->fanet_getTick();
@@ -351,12 +374,16 @@ namespace FANET
             // Drop packages forwarded to us
             if (packet.source() == ownAddress_)
             {
+                stats_.rxFromUsDrp++;
                 return packet.type();
             }
+            stats_.processed++;
 
             // fmac.322
             // addOrUpdate will guarantee this one is added, and any old one is removed
             neighborTable_.addOrUpdate(packet.source(), timeMs);
+
+            stats_.neighborTableSize = neighborTable_.size();
 
             // fmac.326
             // Decide if we have seen this frame already in the past, if so decide what to do with the frame in our buffer
@@ -368,12 +395,14 @@ namespace FANET
                 if (rssddBm > (frmList->rssi() + MAC_FORWARD_MIN_DB_BOOST))
                 {
                     /* received frame is at least 20dB better than the original -> no need to rebroadcast */
+                    stats_.fwdDbBoostDrop++;
                     txPool.remove(frmList);
                 }
                 else
                 {
                     /* adjusting new departure time */
                     // fmac.346
+                    stats_.fwdDbBoostWeak++;
                     frmList->nextTx(connector->fanet_getTick() + random.range(MAC_FORWARD_DELAY_MIN, MAC_FORWARD_DELAY_MAX));
                 }
             }
@@ -407,29 +436,40 @@ namespace FANET
                             // fmac.362
                             auto v = buildAck(packet);
                             txPool.add(TxFrame<uint8_t>{v}.nextTx(timeMs));
+                            stats_.txAck++;
                         }
                     }
                 }
 
                 // fmac.371
-                if (doForward && packet.forward() &&
-                    rssddBm <= MAC_FORWARD_MAX_RSSI_DBM &&
-                    (destination == Address{} || neighborTable_.lastSeen(destination) &&
-                                                     airtime.get(timeMs) < 500))
+                if (doForward && packet.forward())
                 {
-                    /* generate new tx time */
-                    auto nextTx = timeMs + random.range(MAC_FORWARD_DELAY_MIN, MAC_FORWARD_DELAY_MAX);
-                    auto numTx = packet.ackType() != ExtendedHeader::AckType::NONE ? 1 : 0;
+                    if(rssddBm > MAC_FORWARD_MAX_RSSI_DBM) 
+                    {
+                        stats_.fwdMinRssiDrp++; // Packets not forwarding due to Rssi being too good
+                    } else if(destination != Address{} && !neighborTable_.lastSeen(destination))
+                    {
+                        stats_.fwdNeighborDrp++; // Packets discarded due to no neighbor in neighbor table
+                    } else if(airtime.get(timeMs) > 500) 
+                    {
+                        stats_.fwdDropAirtime++;
+                    } else
+                    {
+                        /* generate new tx time */
+                        auto nextTx = timeMs + random.range(MAC_FORWARD_DELAY_MIN, MAC_FORWARD_DELAY_MAX);
+                        auto numTx = packet.ackType() != ExtendedHeader::AckType::NONE ? 1 : 0;
 
-                    /* add to list */
-                    // fmac.368
-                    // fmac.368
-                    auto txFrame = TxFrame<uint8_t>{etl::span<uint8_t>(const_cast<uint8_t *>(buffer.data()), buffer.size())}
-                                       .rssi(rssddBm)
-                                       .numTx(numTx)
-                                       .nextTx(nextTx)
-                                       .forward(false);
-                    txPool.add(txFrame);
+                        /* add to list */
+                        // fmac.368
+                        // fmac.368
+                        auto txFrame = TxFrame<uint8_t>{etl::span<uint8_t>(const_cast<uint8_t *>(buffer.data()), buffer.size())}
+                                        .rssi(rssddBm)
+                                        .numTx(numTx)
+                                        .nextTx(nextTx)
+                                        .forward(false);
+                        txPool.add(txFrame);
+                        stats_.forwarded++;
+                    }
                 }
             }
 
@@ -472,6 +512,17 @@ namespace FANET
                 bool setForward = neighborTable_.size() < MAC_MAXNEIGHBORS_4_TRACKING_2HOP;
                 frm->forward(setForward);
                 auto status = sendFrame(frm);
+                
+                // Update stats
+                if(status.isSend) 
+                {
+                    stats_.txSuccess++;
+                }
+                else
+                {
+                    stats_.txFailed++;
+                }
+
                 txPool.remove(frm);
                 carrierBackoffExp = MAC_TX_BACKOFF_EXP_MIN;
                 cmcaNextTx = timeMs + MAC_TX_MINPREAMBLEHEADERTIME_MS + (status.lengthBytes * MAC_TX_TIMEPERBYTE_MS);
@@ -514,6 +565,7 @@ namespace FANET
             // fmac 505
             if (status.isSend)
             {
+                stats_.txSuccess++;
                 // fmac.522
                 // Remove from if no ACK was requested, and not ours
                 if (frm->ackType() == ExtendedHeader::AckType::NONE || frm->source() != ownAddress_)
@@ -544,6 +596,7 @@ namespace FANET
             }
             else
             {
+                stats_.txFailed++;
                 /* channel busy, increment backoff exp */
                 if (carrierBackoffExp < MAC_TX_BACKOFF_EXP_MAX)
                 {
@@ -565,6 +618,10 @@ namespace FANET
                 it->print();
             }
         }
+
+        const Stats& stats() const { return stats_; }
+
+        size_t txPoolSize() const { return static_cast<int>(txPool.getAllocatedBlocks().size()); }
     };
 
 };
