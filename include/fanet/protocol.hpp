@@ -324,7 +324,7 @@ namespace FANET
         template <size_t MAXFRAMESIZE>
         void sendPacket(Packet<MAXFRAMESIZE> &packet, uint16_t id = 0, bool strict = true)
         {
-            uint8_t numTx;
+            uint8_t numTx=MAC_TX_RETRANSMISSION_RETRYS;
             if (strict)
             {
                 // Ensure source is always our own address

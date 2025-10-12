@@ -20,7 +20,6 @@ namespace FANET
         int32_t latitudeRaw = 0;
         int32_t longitudeRaw = 0;
         bool bPosition = false;
-        uint16_t altitudeRaw = 0;
         int8_t temperatureRaw = 0;
         uint8_t windHeadingRaw = 0;
         bool sWindBit = false;

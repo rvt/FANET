@@ -39,6 +39,8 @@ target_include_directories(${PROJECT_NAME} ${INCLUDE_SPECIFIER} INTERFACE
 
 target_link_libraries(${PROJECT_NAME} INTERFACE)
 
+add_compile_options(-Wall)
+
 # only install if top level project
 if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
     # Steps here based on excellent guide: https://dominikberner.ch/cmake-interface-lib/

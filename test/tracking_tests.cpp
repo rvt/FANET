@@ -278,11 +278,9 @@ TEST_CASE("TrackingPayload serialize/deserialize turnrate", "[single-file]")
 
 TEST_CASE("TrackingPayload serialize/deserialize no turnrate", "[single-file]")
 {
-    TrackingPayload payload;
     auto reader = createReader(makeVector({0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }));
     auto received=TrackingPayload::deserialize(reader);
-    REQUIRE(received.hasTurnrate() == false);  
-
+    REQUIRE(received.hasTurnrate() == false);
 }
 
 TEST_CASE("TrackingPayload serialize/deserialize lat/long", "[single-file]")
